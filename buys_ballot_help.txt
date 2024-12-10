@@ -1,0 +1,17 @@
+This package computes and shows the graph of the series across subperiods, also
+called a Buys-Ballot plot.
+
+The user has the option to also display the transposed plots, with a series for
+each different subperiod.
+
+Syntax:
+
+buys_ballot(y, trans, outprint)
+
+parameters:
+
+y: series (required)
+trans: 1 for transposing the plot [optional, default = 0]
+outprint: boolean, print the rearranged matrix [optional, default = 0]
+
+The function returns the rearranged matrix.

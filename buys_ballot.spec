@@ -1,0 +1,13 @@
+author = Ignacio Diaz-Emparanza, Riccardo (Jack) Lucchetti
+email = ignacio.diaz-emparanza@ehu.eus
+version = 2.0
+date = 2018-02-15
+description = Plots for seasonal time series
+tags = C22
+min-version = 2017a
+data-requirement = needs-time-series-data
+label = Buys-Ballot
+menu-attachment = MAINWIN/View/GraphVars
+public = buys_ballot 
+help = buys_ballot_help.txt
+sample-script = buys_ballot_sample.inp

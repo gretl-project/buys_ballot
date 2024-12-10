@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="gfn2html.xsl"?>
+<gretl-functions>
+<gretl-function-package name="buys_ballot" needs-time-series-data="true" minver="2017a">
+<author email="ignacio.diaz-emparanza@ehu.eus">Ignacio Diaz-Emparanza, Riccardo (Jack) Lucchetti</author>
+<version>2.0</version>
+<date>2018-02-15</date>
+<description>Plots for seasonal time series</description>
+<tags>C22</tags>
+<label>Buys-Ballot</label>
+<menu-attachment>MAINWIN/View/GraphVars</menu-attachment>
+<help>
+This package computes and shows the graph of the series across subperiods, also
+called a Buys-Ballot plot.
+
+The user has the option to also display the transposed plots, with a series for
+each different subperiod.
+
+Syntax:
+
+buys_ballot(y, trans, outprint)
+
+parameters:
+
+y: series (required)
+trans: 1 for transposing the plot [optional, default = 0]
+outprint: boolean, print the rearranged matrix [optional, default = 0]
+
+The function returns the rearranged matrix.
+</help>
+<gretl-function name="buys_ballot" type="matrix">
+ <params count="3">
+  <param name="y" type="series">
+<description>Dependent variable</description>
+  </param>
+  <param name="trans" type="int" min="0" max="1" default="0">
+<description>Type of plot</description>
+<labels count="2">
+"Buys-Ballot plot" "Subperiods plot" </labels>
+  </param>
+  <param name="outprint" type="bool" default="0">
+<description>Print results</description>
+  </param>
+ </params>
+<code>smpl --contiguous y
+string sname = argname(y)
+set warnings off
+# create data matrix
+if maxr($pd .= {4,12})
+  matrix YC = make_ysubperiods(y)
+  scalar firstyear = min($obsmajor)
+  scalar lastyear  = max($obsmajor)
+elif maxr($pd .= {5,6,7})
+  scalar type = daily_type()
+  matrix YC = make_wsubperiods(y, type)
+  if type == 1
+    series wd = weekday($obsmajor,$obsminor,$obsmicro)
+    series week = 1 + cum(wd==1)
+  elif type == 2
+    series wd = $obsminor
+    series week = $obsmajor
+  elif type == 3
+    series wd = time
+    series week = 1 + (time - 1)%7
+  endif
+  scalar firstyear = 1
+  scalar lastyear  = rows(YC)
+else
+  funcerr &quot;Periodicity not supported&quot;
+endif
+set warnings off
+if (trans==1) #Subperiods plot
+  matrix YB=YC ~ seq(firstyear,lastyear)'
+  scalar err = colnames(YB, pernames($pd))
+  title = sprintf(&quot;'Subperiods evolution plot for series %s'&quot;, sname)
+else #Buys-Ballot
+  matrix YB=YC'~seq(1, $pd)'
+  string anyos
+  loop i=firstyear..lastyear --quiet
+    string anyos += &quot;$i &quot;
+  endloop
+  if $pd == 4
+    string anyos += &quot;quarter&quot;
+  elif $pd == 12
+    string anyos += &quot;month&quot;
+  else
+    string anyos += &quot;day&quot;
+  endif
+  scalar err = colnames(YB, anyos)
+  title = sprintf(&quot;'Buys-Ballot plot for series %s'&quot;, sname)
+endif
+plot YB
+  options with-lines single-yaxis
+  literal set title @title
+  literal set xtics 1
+end plot --output=display
+if outprint==1
+  print YB
+endif
+return YB
+</code>
+</gretl-function>
+<gretl-function name="make_wsubperiods" type="matrix" private="1">
+ <params count="2">
+  <param name="x" type="series"/>
+  <param name="type" type="scalar"/>
+ </params>
+<code>scalar nw = ceil($nobs/$pd)
+if type == 1
+  scalar ini = 1 + weekday($obsmajor[$t1],$obsminor[$t1],$obsmicro[$t1])
+elif type == 2
+  scalar ini = $obsminor[$t1]
+else
+  scalar ini = 1
+endif
+scalar nw += (ini&gt;1)
+scalar n = nw * $pd
+scalar fin = ini + $nobs - 1
+set warnings off
+matrix ret = mshape(NA, n, 1)
+ret[ini:fin] = x
+return mshape(ret, $pd, nw)'
+</code>
+</gretl-function>
+<gretl-function name="pernames" type="string" private="1">
+ <params count="1">
+  <param name="pd" type="scalar"/>
+ </params>
+<code>ret = &quot;&quot;
+if pd == 4
+  ret = &quot;q1 q2 q3 q4 year&quot;
+elif pd == 12
+  ret = &quot;jan feb mar apr may jun jul aug sep oct nov dec year&quot;
+elif pd == 5
+  ret = &quot;Mon Tue Wed Thu Fri week&quot;
+elif pd == 6
+  ret = &quot;Mon Tue Wed Thu Fri Sat week&quot;
+elif pd == 7
+  ret = &quot;Mon Tue Wed Thu Fri Sat Sun week&quot;
+endif
+return ret
+</code>
+</gretl-function>
+<gretl-function name="make_ysubperiods" type="matrix" private="1">
+ <params count="1">
+  <param name="x" type="series"/>
+ </params>
+<code>scalar y0 = min($obsmajor)
+scalar s0 = $obsminor[1]
+scalar y1 = max($obsmajor)
+scalar s1 = $obsminor[$nobs]
+ny = (y1 - y0 + 1)
+scalar n = ny * $pd
+scalar ini = s0
+scalar fin = ini + $nobs - 1
+set warnings off
+matrix ret = mshape(NA, n, 1)
+ret[ini:fin] = x
+return mshape(ret, $pd, ny)'
+</code>
+</gretl-function>
+<gretl-function name="daily_type" type="scalar" private="1">
+<code># this function is meant to check whether we have a &quot;real&quot;
+# daily dataset, or simply something with periodicity 5, 6 or 7.
+# it returns 1 for &quot;true daily&quot;, 2 for &quot;not really, but with explicit
+# weeks&quot;, 3 for &quot;rubbish&quot;. Just to be clear, the three cases above
+# corrsepond (respectively) to what you get by
+#
+# setobs 7 2010-01-01
+# setobs 7 4:2
+# setobs 7 1
+scalar ret = 1
+catch d = $obsmicro
+if $error
+  # ok, not &quot;true daily&quot;; do we have weekdays?
+  ret = sd($obsminor) ? 2 : 3
+endif
+return ret
+</code>
+</gretl-function>
+<sample-script>
+include buys_ballot.gfn
+open data9-3.gdt
+
+#Plot the serie reskwh across quarters
+matrix mr=buys_ballot(reskwh,1)
+
+#Plot a series for each quarter in Y with the years in X
+matrix mr2=buys_ballot(reskwh,0)
+</sample-script>
+</gretl-function-package>
+</gretl-functions>
+
